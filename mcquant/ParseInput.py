@@ -11,7 +11,7 @@ def ParseInputDataExtract():
    parser = argparse.ArgumentParser()
    parser.add_argument('--masks',nargs='+', required=True)
    parser.add_argument('--image', required=True)
-   parser.add_argument('--channel_names', required=True)
+   parser.add_argument('--channel_names', required=False)
    parser.add_argument('--output', required=True)
    parser.add_argument(
       '--mask_props', nargs = "+",
@@ -38,12 +38,12 @@ def ParseInputDataExtract():
    parser.add_argument('--version', action='version', version=f'mcquant {__version__}')
    args = parser.parse_args()
    #Create a dictionary object to pass to the next function
-   dict = {'masks': args.masks, 'image': args.image,\
+   params = {'masks': args.masks, 'image': args.image,\
     'channel_names': args.channel_names,'output':args.output,
     'intensity_props': set(args.intensity_props if args.intensity_props is not None else []).union(["intensity_mean"]),
     'mask_props': args.mask_props,
    }
    #Print the dictionary object
-   print(dict)
+   print(params)
    #Return the dictionary
-   return dict
+   return params

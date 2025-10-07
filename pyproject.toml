@@ -12,6 +12,7 @@ dependencies = [
   "numpy",
   "scikit-image>=0.23.2",
   "imagecodecs",
+  "ome_types"
 ]
 
 [project.scripts]

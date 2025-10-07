@@ -10,6 +10,7 @@ import os
 import skimage.measure
 import skimage.measure._regionprops
 import tifffile
+import ome_types
 
 from pathlib import Path
 
@@ -102,6 +103,30 @@ def n_channels(image):
 
     else:
         raise Exception('mcquant currently supports [OME]TIFF and HDF5 formats only')
+
+def find_channel_names(image):
+    '''
+    Attempts to extract channel names from the OME metadata
+
+    Parameters
+    ----------
+    image : str
+        Path to the input image
+    '''
+    # Load metadata
+    with tifffile.TiffFile(image) as tif:
+        ome_metadata = tif.ome_metadata
+        ome = ome_types.from_xml(ome_metadata)
+        channels = ome.images[0].pixels.channels
+
+        if channels[0].name is not None:
+            names = [ch.name for ch in channels]
+        elif channels[0].id is not None:
+            names = [ch.id for ch in channels]
+        else:
+            raise Exception("OME metadata must contain channel names either in the 'Name' or 'id' field")
+
+    return names
 
 def PrepareData(image,z):
     """Function for preparing input for maskzstack function. Connecting function
@@ -206,18 +231,26 @@ def ExtractSingleCells(masks,image,channel_names,output, mask_props=None, intens
     output = Path(output)
 
     #Read csv channel names
-    channel_names_loaded = pd.read_csv(channel_names)
-    #Check for the presence of `marker_name` column
-    if 'marker_name' in channel_names_loaded:
-        #Get the marker_name column if more than one column (CyCIF structure)
-        channel_names_loaded_list = list(channel_names_loaded.marker_name)
-    #Consider the old one-marker-per-line plain text format
-    elif channel_names_loaded.shape[1] == 1:
-        #re-read the csv file and add column name
-        channel_names_loaded = pd.read_csv(channel_names, header = None)
-        channel_names_loaded_list = list(channel_names_loaded.iloc[:,0])
+    if channel_names is not None:
+        print('Parsing channel names from', channel_names)
+        channel_names_loaded = pd.read_csv(channel_names)
+        #Check for the presence of `marker_name` column
+        if 'marker_name' in channel_names_loaded:
+            #Get the marker_name column if more than one column (CyCIF structure)
+            channel_names_loaded_list = list(channel_names_loaded.marker_name)
+        #Consider the old one-marker-per-line plain text format
+        elif channel_names_loaded.shape[1] == 1:
+            #re-read the csv file and add column name
+            channel_names_loaded = pd.read_csv(channel_names, header = None)
+            channel_names_loaded_list = list(channel_names_loaded.iloc[:,0])
+        else:
+            raise Exception('%s must contain the marker_name column'%channel_names)
     else:
-        raise Exception('%s must contain the marker_name column'%channel_names)
+        print('No explicit channel names provided. Attempting to extract from image metadata...')
+        channel_names_loaded_list = find_channel_names(image)
+
+    print("Identified the following channel names:")
+    print(channel_names_loaded_list)
 
     #Contrast against the number of markers in the image
     if len(channel_names_loaded_list) != n_channels(image):
